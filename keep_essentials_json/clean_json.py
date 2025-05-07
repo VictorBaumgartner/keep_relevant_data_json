@@ -1,5 +1,5 @@
 import json
-import argparse
+from pathlib import Path
 from typing import Any, Dict, List
 
 IGNORED_KEYS = {
@@ -13,17 +13,13 @@ def is_useful_value(key: str, value: Any) -> bool:
         return False
     key = key.strip().lower().split(":")[-1]
 
-    # Skip known wrappers / unhelpful metadata
     if key in IGNORED_KEYS or key.startswith("xmlns") or key.startswith("xml"):
         return False
 
-    # Skip nulls, empties, or 0
     if value in [None, "", "0", 0]:
         return False
     if isinstance(value, str) and value.strip() == "":
         return False
-
-    # Skip very short or technical values (like IDs or UUIDs)
     if isinstance(value, str) and len(value.strip()) <= 3 and not value.isalpha():
         return False
 
@@ -52,22 +48,21 @@ def extract_clean_entries(data: Dict[str, Any]) -> List[Dict[str, Any]]:
             cleaned.append(flat)
     return cleaned
 
-def main():
-    parser = argparse.ArgumentParser(description="Auto-clean Tourinsoft JSON for DB import (smart extract).")
-    parser.add_argument("input_json", help="Path to input JSON file")
-    parser.add_argument("--output", help="Optional path to output cleaned JSON")
-    args = parser.parse_args()
-
-    with open(args.input_json, "r", encoding="utf-8") as f:
+def clean_json(input_path: Path, output_path: Path):
+    with input_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     cleaned_data = extract_clean_entries(data)
 
-    if args.output:
-        with open(args.output, "w", encoding="utf-8") as out_f:
-            json.dump(cleaned_data, out_f, ensure_ascii=False, indent=2)
-    else:
-        print(json.dumps(cleaned_data, ensure_ascii=False, indent=2))
+    with output_path.open("w", encoding="utf-8") as out_f:
+        json.dump(cleaned_data, out_f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Clean Tourinsoft-style JSON and output a simplified version.")
+    parser.add_argument("input", type=Path, help="Path to input JSON file")
+    parser.add_argument("output", type=Path, help="Path to output cleaned JSON")
+    args = parser.parse_args()
+
+    clean_json(args.input, args.output)
